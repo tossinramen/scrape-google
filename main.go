@@ -93,6 +93,16 @@ func scrapeClientRequest(searchURL string, proxyString interface{})(*http.Respon
 	return res, nil
 }
 
+func getScrapeClient(proxyString interface{}) *http.Client {
+switch v:= proxyString.(type){
+case string:
+	proxyUrl, _ := url.Parse(v)
+	return &http.Client{Transport: &http.Transport{Proxy: http.ProcyURL(proxyUrl)}}	
+default:
+		return &http.Client{}
+}
+}
+
 func main(){
 	res, err := GoogleScrape("Ethereum", "com", "en", nil, 1, 30, 10)
 	if err == nil{
