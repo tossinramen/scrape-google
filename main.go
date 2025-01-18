@@ -93,6 +93,26 @@ func scrapeClientRequest(searchURL string, proxyString interface{})(*http.Respon
 	return res, nil
 }
 
+func googleResultParsing(response *http.Response, rank int)([]SearchResult, error){
+doc, err := goquery.NewDocumentFromReader(response)
+if err != nil{
+	return nil, err
+}
+results := []SearchResult{}
+sel =: doc.Find("div.g")
+rank ++
+for i := range sel.Nodes{
+	item := sel.Eq(i)
+	linkTag := item.Find("a")
+	link, _ := linkTag.Attr("href")
+	titleTag := item.Find("h3.r")
+	descTag := item.Find("span.st")
+	desc := descTag.Text()
+	title := titleTag.Text()
+}
+}
+
+
 func getScrapeClient(proxyString interface{}) *http.Client {
 switch v:= proxyString.(type){
 case string:
