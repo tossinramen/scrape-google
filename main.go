@@ -239,17 +239,19 @@ func buildGoogleUrls(searchTerm, countryCode, languageCode string, pages, count 
 	searchTerm = strings.Trim(searchTerm, " ")
 	searchTerm = strings.Replace(searchTerm, " ", "+", -1)
 	if googleBase, found := googleDomains[countryCode]; found{
-		for i := 0, i<pages ; i++{
+		for i :=0; i<pages ; i++{
 			start := i*count
-			scrapeURL := fmt.Sprints("%s%s&num=%d&hl=%s&start=%d&filter=0", googleBase, searchTerm, count, languageCode, start)
+			scrapeURL := fmt.Sprintf("%s%s&num=%d&hl=%s&start=%d&filter=0",googleBase, searchTerm, count, languageCode, start)
+			toScrape = append(toScrape, scrapeURL)
 		}
-	}
-	else{
-		err := fmt.Errorf("country (%s) is not currently supported", countryCode)
+	}else{
+		err := fmt.Errorf("country (%s) is currently not supported", countryCode)
 		return nil, err
 	}
 	return toScrape, nil
+
 }
+
 
 
 
