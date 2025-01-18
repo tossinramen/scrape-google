@@ -228,8 +228,7 @@ var userAgents = []string{
 	"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13) AppleWebKit/604.1.38 (KHTML, like Gecko) Version/11.0 Safari/604.1.38",
 }
 
-func randomUserAgent() string{
-	New(NewSource(seed))
+func randomUserAgent() string {
 	randNum := rand.Int() % len(userAgents)
 	return userAgents[randNum]
 }
@@ -255,35 +254,33 @@ func buildGoogleUrls(searchTerm, countryCode, languageCode string, pages, count 
 
 
 
-func GoogleScrape(searchTerm, countryCode, languageCodestring, proxyString interface{}, pages, count, backoff int)([]SearchResult, err){
+func GoogleScrape(searchTerm, countryCode, languageCode string, proxyString interface{}, pages, count, backoff int) ([]SearchResult, error) {
 	results := []SearchResult{}
 	resultCounter := 0
 	googlePages, err := buildGoogleUrls(searchTerm, countryCode, languageCode, pages, count)
-	if err != nil{
+	if err != nil {
 		return nil, err
 	}
-	for _, page := range googlePages{
+	for _, page := range googlePages {
 		res, err := scrapeClientRequest(page, proxyString)
-		if err != nil{
+		if err != nil {
 			return nil, err
 		}
-		data, err := googleResultsParsing(res, resultCounter)
-		if err != nil{
+		data, err := googleResultParsing(res, resultCounter)
+		if err != nil {
 			return nil, err
 		}
 		resultCounter += len(data)
-		for _, result := range data{
-			results = append(results, result)
-		}
-		time.Sleep(time.Duration(backoff)*timeSecond)
+		results = append(results, data...)
+		time.Sleep(time.Duration(backoff) * time.Second)
 	}
 	return results, nil
 }
 
 func scrapeClientRequest(searchURL string, proxyString interface{})(*http.Response, error){
 	baseClient := getScrapeClient(proxyString)
-	req, _ = http:NewRequest("GET", searchURL, nil)
-	req.Header.set("User-Agent", randUserAgent())
+	req, _ := http.NewRequest("GET", searchURL, nil)
+	req.Header.Set("User-Agent", randomUserAgent())
 	res, err := baseClient.Do(req)
 	if res.StatusCode != 200 {
 		err := fmt.Errorf("scraper received a non-200 status code suggesting a ban")
@@ -296,43 +293,42 @@ func scrapeClientRequest(searchURL string, proxyString interface{})(*http.Respon
 	return res, nil
 }
 
-func googleResultParsing(response *http.Response, rank int)([]SearchResult, error){
-doc, err := goquery.NewDocumentFromReader(response)
-if err != nil{
-	return nil, err
-}
-results := []SearchResult{}
-sel =: doc.Find("div.g")
-rank ++
-for i := range sel.Nodes{
-	item := sel.Eq(i)
-	linkTag := item.Find("a")
-	link, _ := linkTag.Attr("href")
-	titleTag := item.Find("h3.r")
-	descTag := item.Find("span.st")
-	desc := descTag.Text()
-	title := titleTag.Text()
-	link = strings.Trim(link, " ")
-	if link != "" && link !="#" && !strings.HasPrefix(link, "/"){
-		result := SearchResult{
-			rank, 
-			link,
-			title,
-			desc
-		}
-		results = append(results, result)
-		rank ++ 
+func googleResultParsing(response *http.Response, rank int) ([]SearchResult, error) {
+	defer response.Body.Close()
+	doc, err := goquery.NewDocumentFromReader(response.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse response body: %w", err)
 	}
+	results := []SearchResult{}
+	sel := doc.Find("div.g")
+	for i := range sel.Nodes {
+		item := sel.Eq(i)
+		linkTag := item.Find("a")
+		link, _ := linkTag.Attr("href")
+		titleTag := item.Find("h3")
+		descTag := item.Find("span.st")
+		desc := descTag.Text()
+		title := titleTag.Text()
+		link = strings.TrimSpace(link)
+		if link != "" && link != "#" && !strings.HasPrefix(link, "/") {
+			result := SearchResult{
+				ResultRank:  rank,
+				ResultURL:   link,
+				ResultTitle: title,
+				ResultDesc:  desc,
+			}
+			results = append(results, result)
+			rank++
+		}
+	}
+	return results, nil
 }
-return results, err
-}
-
 
 func getScrapeClient(proxyString interface{}) *http.Client {
 switch v:= proxyString.(type){
 case string:
 	proxyUrl, _ := url.Parse(v)
-	return &http.Client{Transport: &http.Transport{Proxy: http.ProcyURL(proxyUrl)}}	
+	return &http.Client{Transport: &http.Transport{Proxy: http.ProxyURL(proxyUrl)}}	
 default:
 		return &http.Client{}
 }
