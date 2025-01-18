@@ -2,11 +2,13 @@ package main
 
 import (
 	"fmt"
+	"io"
+	"math/rand"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
-	"math/rand"
-	"net/url"
+
 	"github.com/PuerkitoBio/goquery"
 )
 
@@ -229,7 +231,9 @@ var userAgents = []string{
 }
 
 func randomUserAgent() string {
-	randNum := rand.Int() % len(userAgents)
+	
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+	randNum := r.Intn(len(userAgents))
 	return userAgents[randNum]
 }
 
@@ -277,21 +281,32 @@ func GoogleScrape(searchTerm, countryCode, languageCode string, proxyString inte
 	return results, nil
 }
 
-func scrapeClientRequest(searchURL string, proxyString interface{})(*http.Response, error){
+func scrapeClientRequest(searchURL string, proxyString interface{}) (*http.Response, error) {
 	baseClient := getScrapeClient(proxyString)
-	req, _ := http.NewRequest("GET", searchURL, nil)
+	req, err := http.NewRequest("GET", searchURL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
 	req.Header.Set("User-Agent", randomUserAgent())
 	res, err := baseClient.Do(req)
-	if res.StatusCode != 200 {
-		err := fmt.Errorf("scraper received a non-200 status code suggesting a ban")
-		return nil, err
-
-	}
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("request failed: %w", err)
 	}
+
+	
+	fmt.Println("Status Code:", res.StatusCode)
+
+	
+	if res.StatusCode != 200 {
+		body, _ := io.ReadAll(res.Body)
+		defer res.Body.Close()
+		fmt.Println("Response Body:", string(body))
+		return nil, fmt.Errorf("scraper received a non-200 status code (%d)", res.StatusCode)
+	}
+
 	return res, nil
 }
+
 
 func googleResultParsing(response *http.Response, rank int) ([]SearchResult, error) {
 	defer response.Body.Close()
@@ -334,12 +349,14 @@ default:
 }
 }
 
-func main(){
+func main() {
 	res, err := GoogleScrape("Ethereum", "com", "en", nil, 1, 30, 10)
-	if err == nil{
-		for _, res := range res{
-			fmt.Println(res)
-		}
+	if err != nil {
+		fmt.Println("Error:", err)
+		return
+	}
+	for _, r := range res {
+		fmt.Printf("Rank: %d\nURL: %s\nTitle: %s\nDescription: %s\n\n", r.ResultRank, r.ResultURL, r.ResultTitle, r.ResultDesc)
 	}
 }
 
