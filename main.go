@@ -109,7 +109,19 @@ for i := range sel.Nodes{
 	descTag := item.Find("span.st")
 	desc := descTag.Text()
 	title := titleTag.Text()
+	link = strings.Trim(link, " ")
+	if link != "" && link !="#" && !strings.HasPrefix(link, "/"){
+		result := SearchResult{
+			rank, 
+			link,
+			title,
+			desc
+		}
+		results = append(results, result)
+		rank ++ 
+	}
 }
+return results, err
 }
 
 
