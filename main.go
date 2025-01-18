@@ -28,11 +28,12 @@ var userAgents = []string{
 }
 
 func randomUserAgent() string{
+	New(NewSource(seed))
 	randNum := rand.Int() % len(userAgents)
 	return userAgents[randNum]
 }
 
-func buildGoogleUrls(searchTerm, countryCode, pages, count int)([]string, error){
+func buildGoogleUrls(searchTerm, countryCode, languageCode string, pages, count int)([]string, error){
 	toScrape := []string{}
 	searchTerm = strings.Trim(searchTerm, " ")
 	searchTerm = strings.Replace(searchTerm, " ", "+", -1)
@@ -51,15 +52,49 @@ func buildGoogleUrls(searchTerm, countryCode, pages, count int)([]string, error)
 
 
 
-func GoogleScrape(searchTerm, countryCode, languageCodestring, pages, count)([]SearchResult, err){
+func GoogleScrape(searchTerm, countryCode, languageCodestring, proxyString interface{}, pages, count, backoff int)([]SearchResult, err){
 	results := []SearchResult{}
 	resultCounter := 0
 	googlePages, err := buildGoogleUrls(searchTerm, countryCode, languageCode, pages, count)
-	
+	if err != nil{
+		return nil, err
+	}
+	for _, page := range googlePages{
+		res, err := scrapeClientRequest(page, proxyString)
+		if err != nil{
+			return nil, err
+		}
+		data, err := googleResultsParsing(res, resultCounter)
+		if err != nil{
+			return nil, err
+		}
+		resultCounter += len(data)
+		for _, result := range data{
+			results = append(results, result)
+		}
+		time.Sleep(time.Duration(backoff)*timeSecond)
+	}
+	return results, nil
+}
+
+func scrapeClientRequest(searchURL string, proxyString interface{})(*http.Response, error){
+	baseClient := getScrapeClient(proxyString)
+	req, _ = http:NewRequest("GET", searchURL, nil)
+	req.Header.set("User-Agent", randUserAgent())
+	res, err := baseClient.Do(req)
+	if res.StatusCode != 200 {
+		err := fmt.Errorf("scraper received a non-200 status code suggesting a ban")
+		return nil, err
+
+	}
+	if err != nil {
+		return nil, err
+	}
+	return res, nil
 }
 
 func main(){
-	res, err := GoogleScrape("Ethereum", "en", "com", 1, 30)
+	res, err := GoogleScrape("Ethereum", "com", "en", nil, 1, 30, 10)
 	if err == nil{
 		for _, res := range res{
 			fmt.Println(res)
